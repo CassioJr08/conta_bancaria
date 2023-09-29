@@ -71,7 +71,7 @@ function construindo_conta(){
 
         console.log(chalk.green('Sua conta foi criada com sucesso!!!'))
 
-        operacao()
+        menu(nome_conta)
 
     }).catch(err =>{
         console.log(err)
@@ -121,7 +121,7 @@ function checkAccount(nome_conta, senha_conta){
     }
 
     if(!fs.existsSync(`accounts/${nome_conta}.json`)){
-        console.log(chalk.bgRed.black('Esta conta não existe,  tente novamente'))
+        console.log(chalk.bgRed.black(' Esta conta não existe,  tente novamente '))
         return true
     }
 
@@ -148,7 +148,7 @@ function menu(nome_conta){
         if(menu === 'Consultar Saldo'){
             getAccountBalance(nome_conta)
         }else if(menu === 'Transferencia'){
-            
+            transferencia(nome_conta)
         }else if(menu === 'Depositar'){
             deposit(nome_conta)
         }else if(menu === 'Sacar'){
@@ -241,9 +241,8 @@ function getAccountBalance(nome_conta){
 
         const accountData = getAccount(nome_conta)
 
-        console.log(chalk.bgBlue.black(
-            ` Olá, o saldo da sua conta é de R$${accountData.balance} `))
-
+        console.log(chalk.bgBlue.black(` Olá, o saldo da sua conta é de R$${accountData.balance} `))
+      
         menu(nome_conta)
     }).catch((err)=>{
         console.log(err)
@@ -326,3 +325,85 @@ function delete_account(nome_conta){
     
 }
 
+// função de transferencia bancaria
+
+function transferencia(nome_conta){
+    inquirer.prompt([
+        {
+            name: 'conta_da_transferencia',
+            message: 'Digite o nome da conta que deseja fazer a transferência: '
+        },
+        {
+            name: 'valor_da_transferencia',
+            message: 'Quanto deseja transferir: '
+        },
+        {
+            name: 'nome_senha',
+            message: 'Digite sua senha para efetuar a transferência: '
+        }
+    ]).then(resposta =>{
+        const conta_da_transferencia = resposta['conta_da_transferencia']
+        const valor_da_transferencia = resposta['valor_da_transferencia']
+        const nome_senha = resposta['nome_senha']
+
+        if(conta_da_transferencia == nome_conta){
+            console.log(chalk.bgRed.black('Ocorreu um erro, tente novamente mais tarde!!!'))
+            return transferencia(nome_conta)
+        }
+
+        if(checando_conta(conta_da_transferencia)){
+            return transferencia(nome_conta)
+        }
+
+        if(checkAccount(nome_conta, nome_senha)){
+            return transferencia(nome_conta)
+        }
+
+        realizando_trasnferencia(conta_da_transferencia, valor_da_transferencia, nome_conta)
+    }).catch(err=>{
+        console.log(err)
+    })
+}
+
+
+function realizando_trasnferencia(conta_da_transferencia, valor_da_transferencia, nome_conta){
+    const accountData = getAccount(conta_da_transferencia)
+    const accountPessoal = getAccount(nome_conta)
+
+    if(!valor_da_transferencia) {
+        console.log(chalk.bgRed.black('Ocorreu um erro, tente novamente mais tarde!!!'))
+        return transferencia(nome_conta)
+    }
+
+    if(accountPessoal.balance < valor_da_transferencia){
+        console.log(chalk.bgRed.black('Valor indisponivel!'))
+        return transferencia(nome_conta)
+    }
+
+    accountData.balance = parseFloat(accountData.balance) + parseFloat(valor_da_transferencia)
+    accountPessoal.balance = parseFloat(accountPessoal.balance) - parseFloat(valor_da_transferencia)
+
+    fs.writeFileSync(`accounts/${conta_da_transferencia}.json`, 
+    JSON.stringify(accountData), function (err){
+        console.log(err)
+    })
+
+    fs.writeFileSync(`accounts/${nome_conta}.json`, 
+    JSON.stringify(accountPessoal, null, 2), function (err){
+        console.log(err)
+    })
+
+    console.log(chalk.green(`Tranferência para a conta ${conta_da_transferencia} de R$${valor_da_transferencia} realizada!!!`))
+
+    menu(nome_conta)
+}
+
+//checando se a conta da trasnferencia existe
+function checando_conta(conta_da_transferencia){
+    if(!fs.existsSync(`accounts/${conta_da_transferencia}.json`)){
+        console.log(chalk.bgRed.black('Esta conta não existe, tente novamente!'))
+        return true
+    }
+
+    return false
+}
