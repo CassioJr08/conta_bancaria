@@ -51,9 +51,6 @@ function construindo_conta(){
         const nome_conta = resposta['nome_conta']
         const senha_conta = resposta['senha_conta']
 
-        console.info(nome_conta)
-        console.info(senha_conta)
-
         if(!fs.existsSync('accounts')){
             fs.mkdirSync('accounts')
         }
@@ -73,6 +70,7 @@ function construindo_conta(){
         })
 
         console.log(chalk.green('Sua conta foi criada com sucesso!!!'))
+
         operacao()
 
     }).catch(err =>{
@@ -90,7 +88,7 @@ function login(){
         },
         {
             name: 'senha_conta',
-            message: 'Digite sua senha',
+            message: 'Digite sua senha: ',
         }
     ]).then(resposta => {
         const nome_conta = resposta['nome_conta']
@@ -100,7 +98,7 @@ function login(){
             return login()
         }
 
-        console.log('Sucesso')
+        menu(nome_conta)
         
     }).catch(err =>{
         console.log(err)
@@ -122,10 +120,209 @@ function checkAccount(nome_conta, senha_conta){
         senha = objetoJSON.senha;
     }
 
-    if(!fs.existsSync(`accounts/${nome_conta}.json`) && senha_conta != senha){
-        console.log(chalk.bgRed.black('Esta conta não existe, escolha outro nome!'))
+    if(!fs.existsSync(`accounts/${nome_conta}.json`)){
+        console.log(chalk.bgRed.black('Esta conta não existe,  tente novamente'))
+        return true
+    }
+
+    if(senha != senha_conta){
+        console.log(chalk.bgRed.black('Esta senha não existe, tente novamente!!!'))
         return true
     }
 
     return false
 }
+
+// menu da conta
+function menu(nome_conta){
+    inquirer.prompt([
+        {
+            type: 'list',
+            name: 'menu',
+            message: ' O que você deseja fazer? ',
+            choices: ['Consultar Saldo', 'Transferencia', 'Depositar', 'Sacar', 'Sair', 'Deletar Conta']
+
+        }
+    ]).then((resposta)=>{
+        const menu = resposta['menu']
+        if(menu === 'Consultar Saldo'){
+            getAccountBalance(nome_conta)
+        }else if(menu === 'Transferencia'){
+            
+        }else if(menu === 'Depositar'){
+            deposit(nome_conta)
+        }else if(menu === 'Sacar'){
+            withdraw(nome_conta)
+        }else if(menu === 'Sair'){
+            console.log(chalk.bgBlue.black(' Obrigado por usar a conta '))
+            process.exit()
+        }else if(menu === 'Deletar Conta'){
+            delete_account(nome_conta)
+        }
+        
+    }).catch((err)=>{
+        console.log(err)
+    })
+}
+
+// depositar
+function deposit(nome_conta){
+
+        inquirer.prompt([
+            {
+                name: 'amount',
+                message: 'Quanto você deseja depositar?'
+            },
+            {
+                name: 'senha_conta',
+                message: 'Digite sua senha: ',
+            }
+        ]).then(resposta =>{
+
+            const amount = resposta['amount']
+            const senha_conta = resposta['senha_conta']
+
+            if(checkAccount(nome_conta, senha_conta)){
+                return deposit(nome_conta)
+            }
+
+            //add an amount
+            addAmount(nome_conta, amount)
+            //menu(nome_conta)
+        })
+        .catch(err =>{console.log(err)})
+    }
+
+//adicionando quantia
+function addAmount(nome_conta,amount){
+    const accountData = getAccount(nome_conta)
+    
+    if(!amount) {
+        console.log(chalk.bgRed.black('Ocorreu um erro, tente novamente mais tarde!'))
+        return deposit(nome_conta)
+    }
+
+    accountData.balance = parseFloat(amount) + parseFloat(accountData.balance)
+
+    fs.writeFileSync(`accounts/${nome_conta}.json`, 
+    JSON.stringify(accountData, null, 2), function (err){
+        console.log(err)
+    })
+
+    console.log(chalk.green(`Foi depositado o valor de R$${amount} na sua conta`))
+
+    menu(nome_conta)
+}
+
+function getAccount(nome_conta){
+    const accountJSON = fs.readFileSync(`accounts/${nome_conta}.json`, {
+        encoding: 'utf8',
+        flag: 'r'
+    })
+
+    return JSON.parse(accountJSON)
+
+}
+
+// consultar saldo
+function getAccountBalance(nome_conta){
+    inquirer.prompt([
+        {
+            name:'senha_conta',
+            message: 'Digite sua senha: '
+        }
+    ]).then((resposta) =>{
+        const senha_conta = resposta['senha_conta']
+
+        //verify if account exists
+        if(checkAccount(nome_conta, senha_conta)){
+            return getAccountBalance()
+        }
+
+        const accountData = getAccount(nome_conta)
+
+        console.log(chalk.bgBlue.black(
+            ` Olá, o saldo da sua conta é de R$${accountData.balance} `))
+
+        menu(nome_conta)
+    }).catch((err)=>{
+        console.log(err)
+    })
+}
+
+//sacar
+function withdraw(nome_conta){
+    
+        inquirer.prompt([
+            {
+                name:'amount',
+                message: 'Quanto você deseja sacar?'
+            },
+            {
+                name:'senha_conta',
+                message: 'Digite sua senha: '
+            }
+        ]).then((resposta) =>{
+
+            const amount = resposta['amount']
+            const senha_conta = resposta['senha_conta']
+
+            if(checkAccount(nome_conta, senha_conta)){
+                return withdraw(nome_conta)
+            }
+
+            removAmount(nome_conta, amount)
+            
+
+        }).catch((err)=>{console.log(err)})
+
+
+}
+
+function removAmount(nome_conta, amount){
+    const accountData = getAccount(nome_conta)
+
+    if(!amount) {
+        console.log(chalk.bgRed.black('Ocorreu um erro, tente novamente mais tarde'))
+        return withdraw(nome_conta)
+    }
+
+    if(accountData.balance < amount){
+        console.log(chalk.bgRed.black('Valor indisponivel!'))
+        return withdraw(nome_conta)
+    }
+
+    accountData.balance = parseFloat(accountData.balance) - parseFloat(amount)
+
+    fs.writeFileSync(`accounts/${nome_conta}.json`, 
+    JSON.stringify(accountData), function (err){
+        console.log(err)
+    })
+
+    console.log(chalk.green(`Foi realizado um saque de R$${amount} da sua conta`))
+
+    menu(nome_conta)
+}
+
+//deletar conta
+function delete_account(nome_conta){
+    inquirer.prompt([
+        {
+            name:'senha_conta',
+            message: 'Digite sua senha: '
+        }
+    ]).then(resposta =>{
+        const senha_conta = resposta['senha_conta']
+
+        if(checkAccount(nome_conta, senha_conta)){
+            return delete_account(nome_conta)
+        }
+        fs.unlinkSync(`accounts/${nome_conta}.json`);
+        console.log(chalk.red('Conta deletada'))
+    }).catch(err =>{
+        console.log(err)
+    })
+
+    
+}
+
