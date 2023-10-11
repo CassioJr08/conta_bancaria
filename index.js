@@ -294,7 +294,7 @@ function removAmount(nome_conta, amount){
     accountData.balance = parseFloat(accountData.balance) - parseFloat(amount)
 
     fs.writeFileSync(`accounts/${nome_conta}.json`, 
-    JSON.stringify(accountData), function (err){
+    JSON.stringify(accountData, null, 2), function (err){
         console.log(err)
     })
 
@@ -384,7 +384,7 @@ function realizando_trasnferencia(conta_da_transferencia, valor_da_transferencia
     accountPessoal.balance = parseFloat(accountPessoal.balance) - parseFloat(valor_da_transferencia)
 
     fs.writeFileSync(`accounts/${conta_da_transferencia}.json`, 
-    JSON.stringify(accountData), function (err){
+    JSON.stringify(accountData, null, 2), function (err){
         console.log(err)
     })
 
